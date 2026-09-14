@@ -1,0 +1,43 @@
+name: Daily Briefing
+
+on:
+  schedule:
+    # 22:00 UTC = 06:00 Asia/Manila (no DST)
+    - cron: "0 22 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Derive Pages base URL
+        run: |
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO="${GITHUB_REPOSITORY##*/}"
+          echo "PODCAST_BASE_URL=https://${OWNER}.github.io/${REPO}" >> "$GITHUB_ENV"
+
+      - name: Generate episode
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python3 scripts/generate_episode.py
+
+      - name: Commit and push new episode
+        run: |
+          git config user.name "briefing-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "Daily briefing: $(date -u +%Y-%m-%d)"
+          git push
