@@ -17,17 +17,19 @@ Run locally:
 """
 
 import datetime
+import json
 import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from email.utils import format_datetime, parsedate_to_datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config.feeds import FEEDS, ITEMS_PER_FEED, MAX_ITEM_AGE_HOURS
+from config.feeds import FEEDS, ITEMS_PER_FEED, MARKET_TICKERS, MAX_ITEM_AGE_HOURS
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -35,11 +37,15 @@ EPISODES_DIR = DOCS / "episodes"
 FEED_XML = DOCS / "feed.xml"
 
 MAX_EPISODES_KEPT = 14
-TARGET_WORDS = "1200-1400"  # ~8-10 minutes spoken
+TARGET_WORDS = "850-1000"  # ~6-7 minutes spoken
+PHILIPPINES_WORDS = "140-160"  # ~1 minute
 TTS_VOICE = "en-US-AndrewNeural"
 
 PODCAST_TITLE = "Morning Briefing: Finance & Geopolitics"
-PODCAST_DESC = "A daily 8-10 minute audio briefing on world finance and geopolitics."
+PODCAST_DESC = (
+    "A tight daily 6-7 minute briefing: markets, the Fed and BSP, big tech, "
+    "a one-minute Philippines focus, and world news."
+)
 PODCAST_BASE_URL = os.environ.get("PODCAST_BASE_URL", "").rstrip("/")
 
 
@@ -83,7 +89,46 @@ def fetch_feed_items():
     return collected
 
 
-def build_script_with_claude(items):
+def fetch_market_snapshot():
+    """Latest close and daily % change per ticker, as prompt-ready lines."""
+    lines = []
+    for label, symbol in MARKET_TICKERS:
+        url = (
+            "https://query1.finance.yahoo.com/v8/finance/chart/"
+            f"{urllib.parse.quote(symbol)}?range=5d&interval=1d"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.load(resp)
+            closes = [
+                c
+                for c in data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+                if c is not None
+            ]
+            if len(closes) < 2:
+                continue
+            last, prev = closes[-1], closes[-2]
+            if symbol == "^TNX":
+                change = f"{(last - prev) * 100:+.0f} basis points"
+            else:
+                change = f"{(last - prev) / prev * 100:+.2f}%"
+            lines.append(f"- {label}: {last:,.2f} ({change} vs prior close)")
+        except Exception as exc:  # noqa: BLE001 - missing quotes shouldn't kill the run
+            print(f"[warn] failed to fetch quote {symbol}: {exc}", file=sys.stderr)
+    return lines
+
+
+def clean_for_speech(text: str) -> str:
+    """Strip markdown the model sometimes emits despite instructions."""
+    text = re.sub(r"^\s*#+\s*.*$", "", text, flags=re.MULTILINE)  # headings
+    text = re.sub(r"^\s*[-*]\s+", "", text, flags=re.MULTILINE)  # bullets
+    text = text.replace("**", "").replace("__", "")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def build_script_with_claude(items, market_lines):
     import anthropic
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -95,26 +140,43 @@ def build_script_with_claude(items):
     bullet_lines = "\n".join(f"- [{it['source']}] {it['title']} — {it['desc']}" for it in items)
     today = datetime.date.today().strftime("%A, %B %d, %Y")
 
+    market_block = (
+        "\n".join(market_lines)
+        if market_lines
+        else "(unavailable today -- do NOT state index levels or percentages you can't see in the headlines)"
+    )
+
     prompt = f"""You are writing the spoken script for a daily audio news briefing called
-"{PODCAST_TITLE}". The listener has {TARGET_WORDS} words of listening time (about
-8-10 minutes) on their commute. Today is {today}.
+"{PODCAST_TITLE}". Today is {today}. The listener is based in the Philippines and wants a
+tight, precise update: the key facts and the one-line "why it matters", no long background
+or speculation. Total length: {TARGET_WORDS} words.
 
-Below are raw headlines and snippets pulled from RSS feeds in the last {MAX_ITEM_AGE_HOURS} hours.
-Select the most important finance and geopolitics stories, merge duplicates/related
-items into single narrative threads, and explain WHY each story matters, not just what
-happened. Connect related stories where it's genuinely illuminating (e.g. a conflict
-driving an oil price move).
+Market snapshot (latest closes; use these exact numbers, rounded naturally for speech):
+{market_block}
 
-Raw items:
+Raw headlines and snippets from the last {MAX_ITEM_AGE_HOURS} hours:
 {bullet_lines}
 
-Write ONLY the spoken script, as continuous prose meant to be read aloud by a
-text-to-speech voice:
-- Start with a short greeting that names the day/date.
-- No markdown, no headers, no bullet points, no stage directions.
-- Natural spoken sentences, contractions are fine.
-- End with a short, warm sign-off.
-- Target length: {TARGET_WORDS} words.
+Structure the script in this order:
+1. Greeting naming the day and date, then a one-sentence preview. Keep it short.
+2. Markets (about 250-300 words): how the Dow, S&P 500 and Nasdaq closed, the US 10-year
+   Treasury yield, and notable big-tech movers (Apple, Microsoft, Nvidia, Alphabet, Amazon,
+   Meta, Tesla) with the reason if the headlines give one. Then central banks: the Federal
+   Reserve and the Bangko Sentral ng Pilipinas (BSP) -- any rate decisions, signals from
+   officials, or market expectations for their next moves. If there's no fresh Fed or BSP
+   news, say so in one sentence rather than padding.
+3. Philippines focus -- one minute, {PHILIPPINES_WORDS} words: the PSEi and peso if available,
+   plus the two or three most important Philippine economic, business or political stories.
+4. World and geopolitics (about 250-300 words): the three or four biggest stories, one or two
+   sentences each, noting any market impact (e.g. oil).
+5. A one-line sign-off.
+
+Rules:
+- Precise and brief: numbers and facts first, no filler, no repeating yourself.
+- Only use facts present in the snapshot or headlines above; never invent figures.
+- Output ONLY the spoken script as plain prose for a text-to-speech voice: no markdown,
+  no headings, no asterisks, no bullet points, no stage directions. Use short spoken
+  transitions like "Now to the Philippines." between sections.
 """
 
     resp = client.messages.create(
@@ -122,7 +184,7 @@ text-to-speech voice:
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
-    return resp.content[0].text.strip()
+    return clean_for_speech(resp.content[0].text)
 
 
 def synthesize_audio(script_text: str, out_path: Path):
@@ -232,8 +294,12 @@ def main():
     if not items:
         raise SystemExit("No news items collected -- aborting")
 
+    print("Fetching market snapshot...")
+    market_lines = fetch_market_snapshot()
+    print(f"Got {len(market_lines)}/{len(MARKET_TICKERS)} quotes")
+
     print("Asking Claude to write today's script...")
-    script_text = build_script_with_claude(items)
+    script_text = build_script_with_claude(items, market_lines)
 
     today_str = datetime.date.today().isoformat()
     mp3_path = EPISODES_DIR / f"{today_str}.mp3"
