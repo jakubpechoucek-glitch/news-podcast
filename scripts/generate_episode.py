@@ -38,6 +38,7 @@ FEED_XML = DOCS / "feed.xml"
 
 MAX_EPISODES_KEPT = 14
 TARGET_WORDS = "850-1000"  # ~6-7 minutes spoken
+MIN_WORDS = 800  # below this, ask Claude once to expand the draft
 PHILIPPINES_WORDS = "140-160"  # ~1 minute
 TTS_VOICE = "en-US-AndrewNeural"
 
@@ -89,33 +90,45 @@ def fetch_feed_items():
     return collected
 
 
+def _fetch_quote_line(label, symbol):
+    url = (
+        "https://query1.finance.yahoo.com/v8/finance/chart/"
+        f"{urllib.parse.quote(symbol)}?range=5d&interval=1d"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.load(resp)
+        closes = [
+            c
+            for c in data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+            if c is not None
+        ]
+        if len(closes) < 2:
+            print(f"[warn] not enough data for quote {symbol}", file=sys.stderr)
+            return None
+        last, prev = closes[-1], closes[-2]
+        if symbol == "^TNX":
+            change = f"{(last - prev) * 100:+.0f} basis points"
+        else:
+            change = f"{(last - prev) / prev * 100:+.2f}%"
+        return f"- {label}: {last:,.2f} ({change} vs prior close)"
+    except Exception as exc:  # noqa: BLE001 - missing quotes shouldn't kill the run
+        print(f"[warn] failed to fetch quote {symbol}: {exc}", file=sys.stderr)
+        return None
+
+
 def fetch_market_snapshot():
     """Latest close and daily % change per ticker, as prompt-ready lines."""
     lines = []
-    for label, symbol in MARKET_TICKERS:
-        url = (
-            "https://query1.finance.yahoo.com/v8/finance/chart/"
-            f"{urllib.parse.quote(symbol)}?range=5d&interval=1d"
-        )
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.load(resp)
-            closes = [
-                c
-                for c in data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-                if c is not None
-            ]
-            if len(closes) < 2:
-                continue
-            last, prev = closes[-1], closes[-2]
-            if symbol == "^TNX":
-                change = f"{(last - prev) * 100:+.0f} basis points"
-            else:
-                change = f"{(last - prev) / prev * 100:+.2f}%"
-            lines.append(f"- {label}: {last:,.2f} ({change} vs prior close)")
-        except Exception as exc:  # noqa: BLE001 - missing quotes shouldn't kill the run
-            print(f"[warn] failed to fetch quote {symbol}: {exc}", file=sys.stderr)
+    for label, symbols in MARKET_TICKERS:
+        if isinstance(symbols, str):
+            symbols = (symbols,)
+        for symbol in symbols:
+            line = _fetch_quote_line(label, symbol)
+            if line:
+                lines.append(line)
+                break
     return lines
 
 
@@ -151,7 +164,7 @@ def build_script_with_claude(items, market_lines):
 tight, precise update: the key facts and the one-line "why it matters", no long background
 or speculation. Total length: {TARGET_WORDS} words.
 
-Market snapshot (latest closes; use these exact numbers, rounded naturally for speech):
+Market snapshot (latest closes):
 {market_block}
 
 Raw headlines and snippets from the last {MAX_ITEM_AGE_HOURS} hours:
@@ -172,19 +185,48 @@ Structure the script in this order:
 5. A one-line sign-off.
 
 Rules:
-- Precise and brief: numbers and facts first, no filler, no repeating yourself.
+- Precise: numbers and facts first, no filler, no repeating yourself. Being precise does
+  NOT mean being short -- hit every section's word target by covering more stories and
+  giving each a sentence of "why it matters". The total MUST be {TARGET_WORDS} words.
+- Round numbers for the ear: index levels to the nearest whole number ("the Dow closed at
+  about 52,049"), percentages to one decimal ("up 2.3 percent"), yields to two decimals
+  ("4.96 percent"), the peso to two decimals ("62.56 pesos to the dollar"). Write numbers
+  as digits, never spelled out digit by digit.
 - Only use facts present in the snapshot or headlines above; never invent figures.
 - Output ONLY the spoken script as plain prose for a text-to-speech voice: no markdown,
   no headings, no asterisks, no bullet points, no stage directions. Use short spoken
   transitions like "Now to the Philippines." between sections.
 """
 
+    messages = [{"role": "user", "content": prompt}]
     resp = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=3000,
-        messages=[{"role": "user", "content": prompt}],
+        messages=messages,
     )
-    return clean_for_speech(resp.content[0].text)
+    script = resp.content[0].text
+    word_count = len(script.split())
+    print(f"Draft script: {word_count} words")
+    if word_count < MIN_WORDS:
+        messages += [
+            {"role": "assistant", "content": script},
+            {
+                "role": "user",
+                "content": f"That's only {word_count} words; the target is {TARGET_WORDS}. "
+                "Rewrite the full script to reach the target: add more market detail and "
+                "more world stories from the headlines, keep the Philippines segment at "
+                f"{PHILIPPINES_WORDS} words, and follow all the same rules. "
+                "Output only the script.",
+            },
+        ]
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=3000,
+            messages=messages,
+        )
+        script = resp.content[0].text
+        print(f"Expanded script: {len(script.split())} words")
+    return clean_for_speech(script)
 
 
 def synthesize_audio(script_text: str, out_path: Path):
