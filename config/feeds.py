@@ -19,8 +19,11 @@ FEEDS = [
     ("Fed news", "https://news.google.com/rss/search?q=%22Federal+Reserve%22+rates+when:2d&hl=en-US&gl=US&ceid=US:en"),
     # Philippines
     ("BSP news", "https://news.google.com/rss/search?q=%22Bangko+Sentral%22+OR+BSP+when:2d&hl=en-PH&gl=PH&ceid=PH:en"),
-    ("Inquirer Business", "https://business.inquirer.net/feed"),
-    ("BusinessWorld PH", "https://www.bworldonline.com/feed/"),
+    # Inquirer and BusinessWorld block direct RSS fetches from CI (HTTP 403),
+    # so pull their stories via Google News instead.
+    ("Inquirer Business", "https://news.google.com/rss/search?q=site:business.inquirer.net+when:2d&hl=en-PH&gl=PH&ceid=PH:en"),
+    ("BusinessWorld PH", "https://news.google.com/rss/search?q=site:bworldonline.com+when:2d&hl=en-PH&gl=PH&ceid=PH:en"),
+    ("PSEi news", "https://news.google.com/rss/search?q=PSEi+stocks+when:2d&hl=en-PH&gl=PH&ceid=PH:en"),
     ("Philstar Business", "https://www.philstar.com/rss/business"),
     ("Philippines news", "https://news.google.com/rss/search?q=Philippines+when:1d&hl=en-PH&gl=PH&ceid=PH:en"),
 ]
@@ -32,13 +35,14 @@ MAX_ITEM_AGE_HOURS = 36
 ITEMS_PER_FEED = 8
 
 # Market snapshot pulled from Yahoo Finance so the script quotes real numbers
-# instead of guessing. (label, Yahoo symbol). Failures are skipped silently.
+# instead of guessing. (label, Yahoo symbol or tuple of fallback symbols tried
+# in order). Failures are skipped.
 MARKET_TICKERS = [
     ("Dow Jones", "^DJI"),
     ("S&P 500", "^GSPC"),
     ("Nasdaq Composite", "^IXIC"),
     ("US 10-year Treasury yield (%)", "^TNX"),
-    ("PSEi (Philippine Stock Exchange index)", "PSEI.PS"),
+    ("PSEi (Philippine Stock Exchange index)", ("^PSEI", "PSEI.PS", "PSE.PS")),
     ("US dollar to Philippine peso", "PHP=X"),
     ("Apple", "AAPL"),
     ("Microsoft", "MSFT"),
