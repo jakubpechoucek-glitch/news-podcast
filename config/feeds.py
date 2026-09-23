@@ -42,7 +42,7 @@ MARKET_TICKERS = [
     ("S&P 500", "^GSPC"),
     ("Nasdaq Composite", "^IXIC"),
     ("US 10-year Treasury yield (%)", "^TNX"),
-    ("PSEi (Philippine Stock Exchange index)", ("^PSEI", "PSEI.PS", "PSE.PS")),
+    ("PSEi (Philippine Stock Exchange index)", ("PSEI.PS", "^PSEI")),
     ("US dollar to Philippine peso", "PHP=X"),
     ("Apple", "AAPL"),
     ("Microsoft", "MSFT"),

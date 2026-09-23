@@ -93,21 +93,24 @@ def fetch_feed_items():
 def _fetch_quote_line(label, symbol):
     url = (
         "https://query1.finance.yahoo.com/v8/finance/chart/"
-        f"{urllib.parse.quote(symbol)}?range=5d&interval=1d"
+        f"{urllib.parse.quote(symbol)}?range=1mo&interval=1d"
     )
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.load(resp)
-        closes = [
-            c
-            for c in data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-            if c is not None
-        ]
-        if len(closes) < 2:
+        result = data["chart"]["result"][0]
+        # A month of daily bars so thinly reported indices (e.g. the PSEi) still
+        # have a prior close; fall back to the quote metadata if they don't.
+        closes = [c for c in result["indicators"]["quote"][0]["close"] if c is not None]
+        meta = result.get("meta", {})
+        if len(closes) >= 2:
+            last, prev = closes[-1], closes[-2]
+        elif meta.get("regularMarketPrice") and meta.get("previousClose"):
+            last, prev = meta["regularMarketPrice"], meta["previousClose"]
+        else:
             print(f"[warn] not enough data for quote {symbol}", file=sys.stderr)
             return None
-        last, prev = closes[-1], closes[-2]
         if symbol == "^TNX":
             change = f"{(last - prev) * 100:+.0f} basis points"
         else:
