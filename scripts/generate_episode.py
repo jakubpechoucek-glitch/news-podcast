@@ -263,11 +263,16 @@ def format_duration(seconds: int) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
-def load_existing_items():
+def load_existing_items(exclude_guid=None):
+    """Existing feed items, minus any with exclude_guid (a same-day re-run)."""
     if not FEED_XML.exists():
         return []
     tree = ET.parse(FEED_XML)
-    return tree.getroot().findall(".//item")
+    return [
+        it
+        for it in tree.getroot().findall(".//item")
+        if exclude_guid is None or it.findtext("guid") != exclude_guid
+    ]
 
 
 def rebuild_feed(new_item_fields, existing_item_elements):
@@ -362,7 +367,7 @@ def main():
         "duration": format_duration(duration_s),
     }
 
-    existing_items = load_existing_items()
+    existing_items = load_existing_items(exclude_guid=today_str)
     rebuild_feed(new_item_fields, existing_items)
     prune_old_episodes(existing_items)
 
