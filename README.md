@@ -1,6 +1,7 @@
 # Morning Briefing: Finance & Geopolitics
 
-An automated daily ~8-10 minute audio news briefing, delivered as a private
+An automated daily ~6-7 minute audio news briefing (markets, Fed/BSP, big tech,
+a one-minute Philippines focus, then world news), delivered as a private
 podcast feed you subscribe to in any normal podcast app (Apple Podcasts,
 Overcast, Pocket Casts, Spotify...).
 
@@ -52,8 +53,10 @@ you can preview before pushing.
 
 - **News sources**: edit `config/feeds.py` — just a list of (label, RSS url)
   tuples. Add Reuters/AP/IMF/Fed/whatever you like.
-- **Length**: `TARGET_WORDS` in `scripts/generate_episode.py` (roughly 150
-  spoken words per minute).
+- **Length**: `TARGET_WORDS` / `PHILIPPINES_WORDS` in
+  `scripts/generate_episode.py` (roughly 150 spoken words per minute).
+- **Market numbers**: `MARKET_TICKERS` in `config/feeds.py` (Yahoo Finance
+  symbols) -- indices, 10-year yield, PSEi, USD/PHP and big-tech stocks.
 - **Voice**: `TTS_VOICE` in the same file. List all available voices with
   `edge-tts --list-voices`.
 - **How many episodes to keep**: `MAX_EPISODES_KEPT` (older mp3s get deleted
