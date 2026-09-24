@@ -138,7 +138,17 @@ def _cnbc_prices(symbol):
         )
     )
     quote = data["FormattedQuoteResult"]["FormattedQuote"][0]
-    return _num(quote["last"]), _num(quote["previous_day_closing"])
+    last = _num(quote["last"])
+    # Prefer CNBC's own change figure; outside PSE trading hours (e.g. our 6am
+    # run) previous_day_closing can equal last, which would read as "flat".
+    try:
+        change = _num(quote.get("change", ""))
+    except ValueError:
+        change = 0.0
+    if change:
+        return last, last - change
+    prev = _num(quote["previous_day_closing"])
+    return last, (prev if prev != last else None)
 
 
 def _google_finance_prices(symbol):
@@ -166,6 +176,9 @@ def _fetch_quote_line(label, symbol):
             print(f"[warn] not enough data for quote {symbol}", file=sys.stderr)
             return None
         last, prev = prices
+        if prev is None:
+            print(f"Quote {label}: {last:,.2f} via {symbol} (no daily change)")
+            return f"- {label}: {last:,.2f} (latest close; daily change not available)"
         if sym == "^TNX":
             change = f"{(last - prev) * 100:+.0f} basis points"
         else:
