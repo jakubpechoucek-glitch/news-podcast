@@ -49,6 +49,14 @@ PODCAST_DESC = (
 )
 PODCAST_BASE_URL = os.environ.get("PODCAST_BASE_URL", "").rstrip("/")
 
+# The listener is in Manila (UTC+8, no DST). The workflow runs at 22:00 UTC,
+# which is already the next morning there, so dates must use Manila time.
+LISTENER_TZ = datetime.timezone(datetime.timedelta(hours=8), "Asia/Manila")
+
+
+def listener_today() -> datetime.date:
+    return datetime.datetime.now(LISTENER_TZ).date()
+
 
 def strip_html(text: str) -> str:
     if not text:
@@ -154,7 +162,7 @@ def build_script_with_claude(items, market_lines):
     client = anthropic.Anthropic(api_key=api_key)
 
     bullet_lines = "\n".join(f"- [{it['source']}] {it['title']} — {it['desc']}" for it in items)
-    today = datetime.date.today().strftime("%A, %B %d, %Y")
+    today = listener_today().strftime("%A, %B %d, %Y")
 
     market_block = (
         "\n".join(market_lines)
@@ -351,7 +359,7 @@ def main():
     print("Asking Claude to write today's script...")
     script_text = build_script_with_claude(items, market_lines)
 
-    today_str = datetime.date.today().isoformat()
+    today_str = listener_today().isoformat()
     mp3_path = EPISODES_DIR / f"{today_str}.mp3"
 
     print("Synthesizing audio with edge-tts...")
@@ -361,7 +369,7 @@ def main():
     now = datetime.datetime.now(datetime.timezone.utc)
 
     new_item_fields = {
-        "title": f"Briefing: {datetime.date.today().strftime('%B %d, %Y')}",
+        "title": f"Briefing: {listener_today().strftime('%B %d, %Y')}",
         "description": script_text[:500] + ("..." if len(script_text) > 500 else ""),
         "pub_date": format_datetime(now),
         "guid": today_str,
