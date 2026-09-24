@@ -39,6 +39,8 @@ FEED_XML = DOCS / "feed.xml"
 MAX_EPISODES_KEPT = 14
 TARGET_WORDS = "850-1000"  # ~6-7 minutes spoken
 MIN_WORDS = 800  # below this, ask Claude once to expand the draft
+MODEL = "claude-opus-5"
+BACKUP_MODEL = "claude-haiku-4-5"  # used only if the MODEL request fails
 PHILIPPINES_WORDS = "140-160"  # ~1 minute
 TTS_VOICE = "en-US-AndrewNeural"
 
@@ -98,31 +100,77 @@ def fetch_feed_items():
     return collected
 
 
-def _fetch_quote_line(label, symbol):
-    url = (
-        "https://query1.finance.yahoo.com/v8/finance/chart/"
-        f"{urllib.parse.quote(symbol)}?range=1mo&interval=1d"
+def _http_get(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
+def _num(text):
+    return float(str(text).replace(",", "").replace("%", "").strip())
+
+
+def _yahoo_prices(symbol):
+    data = json.loads(
+        _http_get(
+            "https://query1.finance.yahoo.com/v8/finance/chart/"
+            f"{urllib.parse.quote(symbol)}?range=1mo&interval=1d"
+        )
     )
+    result = data["chart"]["result"][0]
+    # A month of daily bars so thinly reported indices still have a prior
+    # close; fall back to the quote metadata if they don't.
+    closes = [c for c in result["indicators"]["quote"][0]["close"] if c is not None]
+    meta = result.get("meta", {})
+    if len(closes) >= 2:
+        return closes[-1], closes[-2]
+    if meta.get("regularMarketPrice") and meta.get("previousClose"):
+        return meta["regularMarketPrice"], meta["previousClose"]
+    return None
+
+
+def _cnbc_prices(symbol):
+    data = json.loads(
+        _http_get(
+            "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol"
+            f"?symbols={urllib.parse.quote(symbol)}&requestMethod=itv&noform=1"
+            "&partnerId=2&fund=1&exthrs=1&output=json"
+        )
+    )
+    quote = data["FormattedQuoteResult"]["FormattedQuote"][0]
+    return _num(quote["last"]), _num(quote["previous_day_closing"])
+
+
+def _google_finance_prices(symbol):
+    html = _http_get(f"https://www.google.com/finance/quote/{urllib.parse.quote(symbol)}")
+    last = re.search(r'data-last-price="([\d.,]+)"', html) or re.search(
+        r'class="YMlKec fxKbKc">[^\d]*([\d.,]+)<', html
+    )
+    prev = re.search(r'Previous close.*?class="P6K39c">[^\d]*([\d.,]+)<', html, re.S)
+    if last and prev:
+        return _num(last.group(1)), _num(prev.group(1))
+    return None
+
+
+QUOTE_SOURCES = {"yahoo": _yahoo_prices, "cnbc": _cnbc_prices, "gfin": _google_finance_prices}
+
+
+def _fetch_quote_line(label, symbol):
+    """symbol is "source:SYMBOL" (see QUOTE_SOURCES) or a bare Yahoo symbol."""
+    source, sep, sym = symbol.partition(":")
+    if not sep or source not in QUOTE_SOURCES:
+        source, sym = "yahoo", symbol
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.load(resp)
-        result = data["chart"]["result"][0]
-        # A month of daily bars so thinly reported indices (e.g. the PSEi) still
-        # have a prior close; fall back to the quote metadata if they don't.
-        closes = [c for c in result["indicators"]["quote"][0]["close"] if c is not None]
-        meta = result.get("meta", {})
-        if len(closes) >= 2:
-            last, prev = closes[-1], closes[-2]
-        elif meta.get("regularMarketPrice") and meta.get("previousClose"):
-            last, prev = meta["regularMarketPrice"], meta["previousClose"]
-        else:
+        prices = QUOTE_SOURCES[source](sym)
+        if not prices:
             print(f"[warn] not enough data for quote {symbol}", file=sys.stderr)
             return None
-        if symbol == "^TNX":
+        last, prev = prices
+        if sym == "^TNX":
             change = f"{(last - prev) * 100:+.0f} basis points"
         else:
             change = f"{(last - prev) / prev * 100:+.2f}%"
+        print(f"Quote {label}: {last:,.2f} via {symbol}")
         return f"- {label}: {last:,.2f} ({change} vs prior close)"
     except Exception as exc:  # noqa: BLE001 - missing quotes shouldn't kill the run
         print(f"[warn] failed to fetch quote {symbol}: {exc}", file=sys.stderr)
@@ -150,6 +198,33 @@ def clean_for_speech(text: str) -> str:
     text = text.replace("**", "").replace("__", "")
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _ask_claude(client, messages):
+    # Server-side fallbacks: if the model declines (e.g. a safety classifier
+    # tripping on war/security headlines), the API re-runs the request on a
+    # fallback model instead of returning an empty script.
+    import anthropic
+
+    try:
+        resp = client.beta.messages.create(
+            model=MODEL,
+            max_tokens=16000,
+            betas=["server-side-fallback-2026-07-01"],
+            extra_body={"fallbacks": "default"},
+            messages=messages,
+        )
+    except anthropic.APIStatusError as exc:
+        # Don't lose the day's episode over a model/beta access problem.
+        print(f"[warn] {MODEL} request failed ({exc}); using {BACKUP_MODEL}", file=sys.stderr)
+        resp = client.messages.create(model=BACKUP_MODEL, max_tokens=4000, messages=messages)
+    if resp.stop_reason == "refusal":
+        raise SystemExit(f"Claude declined to write the script: {resp.stop_details}")
+    text = "".join(b.text for b in resp.content if b.type == "text").strip()
+    if not text:
+        raise SystemExit(f"Claude returned no script text (stop_reason={resp.stop_reason})")
+    print(f"Script written by {resp.model}")
+    return text
 
 
 def build_script_with_claude(items, market_lines):
@@ -210,12 +285,7 @@ Rules:
 """
 
     messages = [{"role": "user", "content": prompt}]
-    resp = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=3000,
-        messages=messages,
-    )
-    script = resp.content[0].text
+    script = _ask_claude(client, messages)
     word_count = len(script.split())
     print(f"Draft script: {word_count} words")
     if word_count < MIN_WORDS:
@@ -230,12 +300,7 @@ Rules:
                 "Output only the script.",
             },
         ]
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=3000,
-            messages=messages,
-        )
-        script = resp.content[0].text
+        script = _ask_claude(client, messages)
         print(f"Expanded script: {len(script.split())} words")
     return clean_for_speech(script)
 
@@ -345,6 +410,13 @@ def prune_old_episodes(existing_item_elements):
 
 def main():
     EPISODES_DIR.mkdir(parents=True, exist_ok=True)
+
+    if os.environ.get("QUOTES_ONLY"):
+        # Diagnostic mode: check market data sources without publishing anything.
+        lines = fetch_market_snapshot()
+        print("\n".join(lines))
+        print(f"Got {len(lines)}/{len(MARKET_TICKERS)} quotes")
+        return
 
     print("Fetching RSS feeds...")
     items = fetch_feed_items()
