@@ -57,6 +57,11 @@ you can preview before pushing.
   `scripts/generate_episode.py` (roughly 150 spoken words per minute).
 - **Market numbers**: `MARKET_TICKERS` in `config/feeds.py` (Yahoo Finance
   symbols) -- indices, 10-year yield, PSEi, USD/PHP and big-tech stocks.
+- **Model**: `MODEL` in `scripts/generate_episode.py` (falls back to
+  `BACKUP_MODEL` if the main model request fails).
+- **Testing market data**: Actions -> Daily Briefing -> Run workflow with
+  "Only test market data sources" ticked prints every quote without
+  publishing an episode.
 - **Voice**: `TTS_VOICE` in the same file. List all available voices with
   `edge-tts --list-voices`.
 - **How many episodes to keep**: `MAX_EPISODES_KEPT` (older mp3s get deleted

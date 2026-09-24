@@ -34,15 +34,16 @@ MAX_ITEM_AGE_HOURS = 36
 # How many items to pull from each feed before the LLM filters/prioritizes.
 ITEMS_PER_FEED = 8
 
-# Market snapshot pulled from Yahoo Finance so the script quotes real numbers
-# instead of guessing. (label, Yahoo symbol or tuple of fallback symbols tried
-# in order). Failures are skipped.
+# Market snapshot so the script quotes real numbers instead of guessing.
+# (label, symbol or tuple of fallback symbols tried in order). A bare symbol is
+# Yahoo Finance; "cnbc:" and "gfin:" (Google Finance) prefixes pick another
+# source. Failures are skipped.
 MARKET_TICKERS = [
     ("Dow Jones", "^DJI"),
     ("S&P 500", "^GSPC"),
     ("Nasdaq Composite", "^IXIC"),
     ("US 10-year Treasury yield (%)", "^TNX"),
-    ("PSEi (Philippine Stock Exchange index)", ("PSEI.PS", "^PSEI")),
+    ("PSEi (Philippine Stock Exchange index)", ("cnbc:.PSI", "gfin:PSEI:PSE", "PSEI.PS")),
     ("US dollar to Philippine peso", "PHP=X"),
     ("Apple", "AAPL"),
     ("Microsoft", "MSFT"),
