@@ -37,17 +37,18 @@ EPISODES_DIR = DOCS / "episodes"
 FEED_XML = DOCS / "feed.xml"
 
 MAX_EPISODES_KEPT = 14
-TARGET_WORDS = "850-1000"  # ~6-7 minutes spoken
-MIN_WORDS = 800  # below this, ask Claude once to expand the draft
+TARGET_WORDS = "1000-1150"  # ~7-8 minutes spoken
+MIN_WORDS = 950  # below this, ask Claude once to expand the draft
 MODEL = "claude-opus-5"
 BACKUP_MODEL = "claude-haiku-4-5"  # used only if the MODEL request fails
 PHILIPPINES_WORDS = "140-160"  # ~1 minute
+INDIA_WORDS = "140-160"  # ~1 minute
 TTS_VOICE = "en-US-AndrewNeural"
 
 PODCAST_TITLE = "Morning Briefing: Finance & Geopolitics"
 PODCAST_DESC = (
-    "A tight daily 6-7 minute briefing: markets, the Fed and BSP, big tech, "
-    "a one-minute Philippines focus, and world news."
+    "A tight daily 7-8 minute briefing: markets, the Fed and BSP, big tech, "
+    "one-minute Philippines and India focuses, and world news."
 )
 PODCAST_BASE_URL = os.environ.get("PODCAST_BASE_URL", "").rstrip("/")
 
@@ -279,9 +280,12 @@ Structure the script in this order:
    news, say so in one sentence rather than padding.
 3. Philippines focus -- one minute, {PHILIPPINES_WORDS} words: the PSEi and peso if available,
    plus the two or three most important Philippine economic, business or political stories.
-4. World and geopolitics (about 250-300 words): the three or four biggest stories, one or two
+4. India focus -- one minute, {INDIA_WORDS} words: how the Nifty 50 and Sensex closed, the
+   rupee, any Reserve Bank of India (RBI) signals, and the two or three most important Indian
+   economic, business or political stories.
+5. World and geopolitics (about 250-300 words): the three or four biggest stories, one or two
    sentences each, noting any market impact (e.g. oil).
-5. A one-line sign-off.
+6. A one-line sign-off.
 
 Rules:
 - Precise: numbers and facts first, no filler, no repeating yourself. Being precise does
@@ -289,12 +293,13 @@ Rules:
   giving each a sentence of "why it matters". The total MUST be {TARGET_WORDS} words.
 - Round numbers for the ear: index levels to the nearest whole number ("the Dow closed at
   about 52,049"), percentages to one decimal ("up 2.3 percent"), yields to two decimals
-  ("4.96 percent"), the peso to two decimals ("62.56 pesos to the dollar"). Write numbers
+  ("4.96 percent"), the peso to two decimals ("62.56 pesos to the dollar"), the rupee to two decimals
+  ("88.12 rupees to the dollar"). Write numbers
   as digits, never spelled out digit by digit.
 - Only use facts present in the snapshot or headlines above; never invent figures.
 - Output ONLY the spoken script as plain prose for a text-to-speech voice: no markdown,
   no headings, no asterisks, no bullet points, no stage directions. Use short spoken
-  transitions like "Now to the Philippines." between sections.
+  transitions like "Now to the Philippines." and "Turning to India." between sections.
 """
 
     messages = [{"role": "user", "content": prompt}]
@@ -308,8 +313,8 @@ Rules:
                 "role": "user",
                 "content": f"That's only {word_count} words; the target is {TARGET_WORDS}. "
                 "Rewrite the full script to reach the target: add more market detail and "
-                "more world stories from the headlines, keep the Philippines segment at "
-                f"{PHILIPPINES_WORDS} words, and follow all the same rules. "
+                "more world stories from the headlines, keep the Philippines and India "
+                f"segments at {PHILIPPINES_WORDS} words each, and follow all the same rules. "
                 "Output only the script.",
             },
         ]
