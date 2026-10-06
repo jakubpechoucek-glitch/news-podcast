@@ -26,6 +26,12 @@ FEEDS = [
     ("PSEi news", "https://news.google.com/rss/search?q=PSEi+stocks+when:2d&hl=en-PH&gl=PH&ceid=PH:en"),
     ("Philstar Business", "https://www.philstar.com/rss/business"),
     ("Philippines news", "https://news.google.com/rss/search?q=Philippines+when:1d&hl=en-PH&gl=PH&ceid=PH:en"),
+    # India
+    ("ET Markets", "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"),
+    ("Livemint Markets", "https://www.livemint.com/rss/markets"),
+    ("Sensex/Nifty news", "https://news.google.com/rss/search?q=Sensex+OR+Nifty+when:2d&hl=en-IN&gl=IN&ceid=IN:en"),
+    ("RBI news", "https://news.google.com/rss/search?q=%22Reserve+Bank+of+India%22+OR+RBI+when:2d&hl=en-IN&gl=IN&ceid=IN:en"),
+    ("India news", "https://news.google.com/rss/search?q=India+economy+OR+politics+when:1d&hl=en-IN&gl=IN&ceid=IN:en"),
 ]
 
 # Only consider items published within this many hours of the run.
@@ -45,6 +51,9 @@ MARKET_TICKERS = [
     ("US 10-year Treasury yield (%)", "^TNX"),
     ("PSEi (Philippine Stock Exchange index)", ("cnbc:.PSI", "gfin:PSEI:PSE", "PSEI.PS")),
     ("US dollar to Philippine peso", "PHP=X"),
+    ("Nifty 50", ("^NSEI", "cnbc:.NSEI")),
+    ("BSE Sensex", ("^BSESN", "cnbc:.BSESN")),
+    ("US dollar to Indian rupee", "INR=X"),
     ("Apple", "AAPL"),
     ("Microsoft", "MSFT"),
     ("Nvidia", "NVDA"),

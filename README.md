@@ -1,7 +1,7 @@
 # Morning Briefing: Finance & Geopolitics
 
-An automated daily ~6-7 minute audio news briefing (markets, Fed/BSP, big tech,
-a one-minute Philippines focus, then world news), delivered as a private
+An automated daily ~7-8 minute audio news briefing (markets, Fed/BSP, big tech,
+one-minute Philippines and India focuses, then world news), delivered as a private
 podcast feed you subscribe to in any normal podcast app (Apple Podcasts,
 Overcast, Pocket Casts, Spotify...).
 
@@ -53,10 +53,10 @@ you can preview before pushing.
 
 - **News sources**: edit `config/feeds.py` — just a list of (label, RSS url)
   tuples. Add Reuters/AP/IMF/Fed/whatever you like.
-- **Length**: `TARGET_WORDS` / `PHILIPPINES_WORDS` in
+- **Length**: `TARGET_WORDS` / `PHILIPPINES_WORDS` / `INDIA_WORDS` in
   `scripts/generate_episode.py` (roughly 150 spoken words per minute).
 - **Market numbers**: `MARKET_TICKERS` in `config/feeds.py` (Yahoo Finance
-  symbols) -- indices, 10-year yield, PSEi, USD/PHP and big-tech stocks.
+  symbols) -- indices, 10-year yield, PSEi, USD/PHP, Nifty, Sensex, USD/INR and big-tech stocks.
 - **Model**: `MODEL` in `scripts/generate_episode.py` (falls back to
   `BACKUP_MODEL` if the main model request fails).
 - **Testing market data**: Actions -> Daily Briefing -> Run workflow with
