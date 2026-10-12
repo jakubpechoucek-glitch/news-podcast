@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -44,6 +45,7 @@ BACKUP_MODEL = "claude-haiku-4-5"  # used only if the MODEL request fails
 PHILIPPINES_WORDS = "140-160"  # ~1 minute
 INDIA_WORDS = "140-160"  # ~1 minute
 TTS_VOICE = "en-US-AndrewNeural"
+TTS_ATTEMPTS = 3
 
 PODCAST_TITLE = "Morning Briefing: Finance & Geopolitics"
 PODCAST_DESC = (
@@ -323,23 +325,41 @@ Rules:
     return clean_for_speech(script)
 
 
-def synthesize_audio(script_text: str, out_path: Path):
+def synthesize_audio(script_text: str, out_path: Path) -> str:
+    """Write the mp3 and return the name of the TTS engine that produced it."""
     tmp_txt = out_path.with_suffix(".txt")
     tmp_txt.write_text(script_text, encoding="utf-8")
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "edge_tts",
-            "--voice",
-            TTS_VOICE,
-            "--file",
-            str(tmp_txt),
-            "--write-media",
-            str(out_path),
-        ],
-        check=True,
-    )
+    # edge-tts uses Microsoft's unofficial Edge read-aloud endpoint, which
+    # sometimes rejects requests (HTTP 403) until edge-tts ships an update.
+    # Retry a few times, then fall back to Google's voice so the episode ships.
+    for attempt in range(1, TTS_ATTEMPTS + 1):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "edge_tts",
+                "--voice",
+                TTS_VOICE,
+                "--file",
+                str(tmp_txt),
+                "--write-media",
+                str(out_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and out_path.exists() and out_path.stat().st_size > 0:
+            return "edge-tts"
+        error = (result.stderr.strip().splitlines() or ["unknown error"])[-1]
+        print(f"[warn] edge-tts attempt {attempt}/{TTS_ATTEMPTS} failed: {error}", file=sys.stderr)
+        if attempt < TTS_ATTEMPTS:
+            time.sleep(30 * attempt)
+
+    print("[warn] edge-tts unavailable; falling back to gTTS", file=sys.stderr)
+    from gtts import gTTS
+
+    gTTS(script_text, lang="en", tld="com").save(str(out_path))
+    return "gTTS"
 
 
 def get_duration_seconds(mp3_path: Path) -> int:
@@ -452,8 +472,9 @@ def main():
     today_str = listener_today().isoformat()
     mp3_path = EPISODES_DIR / f"{today_str}.mp3"
 
-    print("Synthesizing audio with edge-tts...")
-    synthesize_audio(script_text, mp3_path)
+    print("Synthesizing audio...")
+    engine = synthesize_audio(script_text, mp3_path)
+    print(f"Audio synthesized with {engine}")
 
     duration_s = get_duration_seconds(mp3_path)
     now = datetime.datetime.now(datetime.timezone.utc)
