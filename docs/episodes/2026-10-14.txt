@@ -1,0 +1,37 @@
+Good morning. It's Wednesday, October 14, 2026, and here's your Morning Briefing on finance and geopolitics. Today: a chip-led wobble on Wall Street, mixed Fed signals, a weaker peso and PSEi, and escalating attacks around Riyadh.
+
+Start with markets. US stocks closed lower but without panic. The Dow Jones ended at about 51,670, down 0.4 percent. The S&P 500 finished at roughly 7,805, essentially flat, down less than a tenth of a percent. The Nasdaq Composite closed near 27,204, down 0.2 percent. The US 10-year Treasury yield slipped 2 basis points to 5.22 percent.
+
+The drag was semiconductors for a second straight day. Micron sank and memory-linked names fell after reports that China's leading memory chipmaker, CXMT, has made progress on new designs, a sell-off that spilled into Asian and European trading and hit SK Hynix. Why it matters: the AI trade's weakest link right now is pricing power in memory, not demand for compute.
+
+Big tech was mostly green. Meta led, up 2.6 percent to about 762.50. Nvidia rose 1.0 percent to roughly 228.50, holding up even as the broader chip index fell. Microsoft added 0.4 percent to about 543, Alphabet gained 0.3 percent to around 354, and Apple edged up 0.1 percent to about 341 after launching HomeView, a smart home hub with a screen built around Siri AI, plus a new Apple TV 4K and HomePod Mini. Amazon fell 0.4 percent and Tesla dropped 0.7 percent.
+
+In financials, JPMorgan's earnings missed, Citigroup and Goldman Sachs diverged, and Bank of America was fined 1.2 billion dollars by the Treasury Department over money-laundering violations, announced less than a day before its results.
+
+On central banks, the Fed is openly split. New York Fed President John Williams sees one more hike this year but no further increase in 2027, with inflation reaching 2 percent next year. Cleveland's Beth Hammack says tighter policy may still be needed to stop an inflationary mindset taking hold. The Mortgage Bankers Association expects two more hikes, in December and the first quarter of 2027, and prediction markets say inflation has likely peaked for 2026 but stays sticky, with little chance core inflation falls to 2.2 percent this year. Why it matters: traders are pricing more tightening than Williams is signalling, so every inflation print now carries extra weight.
+
+No rate decision from the Bangko Sentral ng Pilipinas, but plenty of commentary, which brings us to the Philippines.
+
+Now to the Philippines. The PSEi closed at about 5,702, down 0.7 percent, snapping a two-day rally as investors took profits amid inflation and rate-hike fears. The peso ended at 62.73 to the dollar, weaker by 0.06 percent and close to flat. The Manila Bulletin reports that BSP intervention may no longer be enough to stop a slide toward 63 pesos.
+
+The BSP trimmed its balance of payments deficit forecasts for 2026 and 2027, but warned the country's twin deficits will persist because of oil shocks, geopolitical tension and uneven global growth. The IMF says the BSP faces a tough policy trade-off, and projects the Philippines growing slower than most major Southeast Asian peers this year, with unemployment rising, before a stronger rebound in 2027. Foreign investments plunged 44.1 percent in July. Why it matters: a weak peso, high fuel costs and shrinking foreign inflows all push the BSP toward tightening into a slowdown.
+
+Elsewhere: the Energy Regulatory Commission suspended Reserve Market operations to curb high ancillary service prices, especially in the Visayas; PAGCOR targets a full exit from casino operations by late 2027; pump prices saw gasoline and kerosene up, diesel down; and Vice President Sara Duterte's lawyers disputed the 817.9-million-peso unexplained wealth claim at trial.
+
+Turning to India. Indian equities gave back part of a big rally. The Nifty 50 closed at about 22,363, down 0.7 percent, and the BSE Sensex at roughly 71,925, down 0.8 percent. That follows Tuesday's surge, when the Sensex jumped 1,109 points and investors added more than 4 lakh crore rupees in market value, led by IT stocks after HCLTech's second-quarter results and by HDFC Bank.
+
+The rupee strengthened to 95.28 per dollar, up about 0.5 percent, pushing the dollar-rupee pair to a one-month low. The Reserve Bank of India governor said foreign exchange curbs are designed to quell speculation, and argued rates and financial stability are interlinked; the RBI also announced a special forex facility for oil refiners IOCL, HPCL and BPCL. The finance minister confirmed the RBI will keep curbing rupee volatility. Why it matters: India is managing an oil-driven dollar squeeze through plumbing rather than rate moves.
+
+On the macro side, the IMF projects India growing at 7 percent in fiscal 2027 and 2028, against 1.8 percent for advanced economies in 2027. Prime Minister Modi told the Bloomberg New Economy Forum that India offers reliability amid global uncertainty. NSE IFSC and the London Stock Exchange signed a memorandum to explore dual listings and cross-border trading between GIFT City and London, and SEBI opened consultation on monitoring the use of IPO proceeds.
+
+Now to the world. The biggest market-relevant story is the Gulf. Missiles were intercepted near Riyadh after the Saudi-led coalition struck a fuel depot near Houthi-controlled Sanaa, and a funeral was held in Egypt for a flight attendant killed in a Houthi attack on Riyadh. Deadly attacks at Riyadh's main airport are disrupting airlines, closing airspace and forcing route changes, with Delta delaying its Riyadh service. In Yemen's Taiz, a Houthi siege has worsened food shortages. Oil, though, held steady after three sessions of gains as traders booked profits, with supply risks from the Middle East to Russia still live. Why it matters: aviation and energy infrastructure are now front-line targets, and that risk premium sits directly in Philippine fuel and electricity bills.
+
+In Washington, President Trump's diesel deal with Russia covers less than two weeks of US demand, as he faces pressure to cut fuel prices with midterm elections under a month away. Trump also ousted Kimberly Guilfoyle as ambassador to Greece over corruption allegations, which she denies.
+
+The Vatican says Pope Leo, 71, has been diagnosed with lung cancer and had successful surgery to remove the lower lobe of his right lung. He is recovering at Rome's Gemelli hospital.
+
+In security and tech, MI5 chief Ken McCallum warned that threats from Russia, Iran and AI now put state threats on roughly equal footing with terrorism. The FBI arrested a Saudi OpenAI employee accused of planting a sophisticated recording device in an executive conference room. AI companion startup Character.ai filed for Chapter 11, citing costs and litigation, while Anthropic prepares to disclose fresh revenue figures to investors this week. JPMorgan is blocking outside AI agents from directly accessing customer accounts, with Jamie Dimon warning about rogue agents at scale.
+
+Finally, the IMF upgraded UK growth for this year ahead of the first Budget under Prime Minister Andy Burnham, while flagging higher energy prices next year, and dating app Bumble was bought for 1.3 billion dollars.
+
+That's your briefing. Trade carefully, and we'll see you tomorrow morning.
