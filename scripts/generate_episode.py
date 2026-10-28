@@ -52,6 +52,11 @@ PODCAST_DESC = (
     "A tight daily 7-8 minute briefing: markets, the Fed and BSP, big tech, "
     "one-minute Philippines and India focuses, and world news."
 )
+PODCAST_AUTHOR = "Jakub Pechoucek"
+PODCAST_EMAIL = "jakub.pechoucek@gmail.com"  # public in the feed; Spotify/Apple send their verification code here
+PODCAST_CATEGORY = "News"
+PODCAST_SUBCATEGORY = "Business News"
+PODCAST_COVER = "cover.jpg"  # docs/cover.jpg, square 1400-3000 px
 PODCAST_BASE_URL = os.environ.get("PODCAST_BASE_URL", "").rstrip("/")
 
 # The listener is in Manila (UTC+8, no DST). The workflow runs at 22:00 UTC,
@@ -390,6 +395,9 @@ def load_existing_items(exclude_guid=None):
 
 
 def rebuild_feed(new_item_fields, existing_item_elements):
+    """Write docs/feed.xml. With new_item_fields=None only the channel header is
+    refreshed and the existing episodes are kept as they are."""
+    ITUNES = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
     NS = {
         "itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd",
         "atom": "http://www.w3.org/2005/Atom",
@@ -403,33 +411,48 @@ def rebuild_feed(new_item_fields, existing_item_elements):
     ET.SubElement(channel, "link").text = PODCAST_BASE_URL or "https://example.com"
     ET.SubElement(channel, "description").text = PODCAST_DESC
     ET.SubElement(channel, "language").text = "en-us"
-    ET.SubElement(channel, "{http://www.itunes.com/dtds/podcast-1.0.dtd}explicit").text = "false"
+    ET.SubElement(channel, f"{ITUNES}explicit").text = "false"
+    ET.SubElement(channel, f"{ITUNES}type").text = "episodic"
+    ET.SubElement(channel, f"{ITUNES}author").text = PODCAST_AUTHOR
+    ET.SubElement(channel, f"{ITUNES}summary").text = PODCAST_DESC
+    owner = ET.SubElement(channel, f"{ITUNES}owner")
+    ET.SubElement(owner, f"{ITUNES}name").text = PODCAST_AUTHOR
+    ET.SubElement(owner, f"{ITUNES}email").text = PODCAST_EMAIL
+    category = ET.SubElement(channel, f"{ITUNES}category", {"text": PODCAST_CATEGORY})
+    ET.SubElement(category, f"{ITUNES}category", {"text": PODCAST_SUBCATEGORY})
     if PODCAST_BASE_URL:
+        cover_url = f"{PODCAST_BASE_URL}/{PODCAST_COVER}"
+        ET.SubElement(channel, f"{ITUNES}image", {"href": cover_url})
+        image = ET.SubElement(channel, "image")
+        ET.SubElement(image, "url").text = cover_url
+        ET.SubElement(image, "title").text = PODCAST_TITLE
+        ET.SubElement(image, "link").text = PODCAST_BASE_URL
         ET.SubElement(
             channel,
             "{http://www.w3.org/2005/Atom}link",
             {"href": f"{PODCAST_BASE_URL}/feed.xml", "rel": "self", "type": "application/rss+xml"},
         )
 
-    item = ET.SubElement(channel, "item")
-    ET.SubElement(item, "title").text = new_item_fields["title"]
-    ET.SubElement(item, "description").text = new_item_fields["description"]
-    ET.SubElement(item, "pubDate").text = new_item_fields["pub_date"]
-    ET.SubElement(item, "guid", {"isPermaLink": "false"}).text = new_item_fields["guid"]
-    ET.SubElement(
-        item,
-        "enclosure",
-        {
-            "url": new_item_fields["audio_url"],
-            "length": str(new_item_fields["length_bytes"]),
-            "type": "audio/mpeg",
-        },
-    )
-    ET.SubElement(item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration").text = new_item_fields[
-        "duration"
-    ]
+    keep = MAX_EPISODES_KEPT
+    if new_item_fields is not None:
+        keep = MAX_EPISODES_KEPT - 1
+        item = ET.SubElement(channel, "item")
+        ET.SubElement(item, "title").text = new_item_fields["title"]
+        ET.SubElement(item, "description").text = new_item_fields["description"]
+        ET.SubElement(item, "pubDate").text = new_item_fields["pub_date"]
+        ET.SubElement(item, "guid", {"isPermaLink": "false"}).text = new_item_fields["guid"]
+        ET.SubElement(
+            item,
+            "enclosure",
+            {
+                "url": new_item_fields["audio_url"],
+                "length": str(new_item_fields["length_bytes"]),
+                "type": "audio/mpeg",
+            },
+        )
+        ET.SubElement(item, f"{ITUNES}duration").text = new_item_fields["duration"]
 
-    for old_item in existing_item_elements[: MAX_EPISODES_KEPT - 1]:
+    for old_item in existing_item_elements[:keep]:
         channel.append(old_item)
 
     ET.ElementTree(rss).write(FEED_XML, encoding="utf-8", xml_declaration=True)
@@ -448,6 +471,12 @@ def prune_old_episodes(existing_item_elements):
 
 def main():
     EPISODES_DIR.mkdir(parents=True, exist_ok=True)
+
+    if os.environ.get("REFRESH_FEED_ONLY"):
+        # Rewrite the feed header (author, owner, category, cover) without a new episode.
+        rebuild_feed(None, load_existing_items())
+        print(f"Feed header refreshed: {FEED_XML}")
+        return
 
     if os.environ.get("QUOTES_ONLY"):
         # Diagnostic mode: check market data sources without publishing anything.
